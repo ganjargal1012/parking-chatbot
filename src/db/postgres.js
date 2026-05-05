@@ -9,34 +9,6 @@ function isDatabaseConfigured() {
   return Boolean(connectionString);
 }
 
-function getDatabaseConfigSummary() {
-  if (!isDatabaseConfigured()) {
-    return {
-      configured: false,
-      ssl: false,
-      host: ""
-    };
-  }
-
-  try {
-    const parsed = new URL(connectionString);
-
-    return {
-      configured: true,
-      ssl: Boolean(shouldUseSsl),
-      host: parsed.hostname || "",
-      port: parsed.port || "",
-      database: parsed.pathname.replace(/^\//, "")
-    };
-  } catch {
-    return {
-      configured: true,
-      ssl: Boolean(shouldUseSsl),
-      host: "unparsed"
-    };
-  }
-}
-
 function getPool() {
   if (!isDatabaseConfigured()) {
     return null;
@@ -63,7 +35,6 @@ async function query(text, params) {
 }
 
 module.exports = {
-  getDatabaseConfigSummary,
   isDatabaseConfigured,
   query
 };
