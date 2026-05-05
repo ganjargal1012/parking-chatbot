@@ -34,7 +34,31 @@ async function query(text, params) {
   return activePool.query(text, params);
 }
 
+async function pingDatabase() {
+  if (!isDatabaseConfigured()) {
+    return {
+      configured: false,
+      connected: false
+    };
+  }
+
+  try {
+    await query("select 1");
+    return {
+      configured: true,
+      connected: true
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      connected: false,
+      error: error.message
+    };
+  }
+}
+
 module.exports = {
   isDatabaseConfigured,
+  pingDatabase,
   query
 };

@@ -3,6 +3,7 @@ const express = require("express");
 
 const { env } = require("../config/env");
 const { getReplyForMessage } = require("../services/conversationService");
+const { sendAlert } = require("../services/monitoringService");
 const { sendTextMessage } = require("../services/messengerService");
 const { getSenderIdByIssue } = require("../store/userStore");
 
@@ -102,6 +103,11 @@ router.post("/jira", async (req, res) => {
     return res.status(200).json({ ok: true });
   } catch (error) {
     console.error("Failed to process Jira webhook:", error.message);
+    await sendAlert("jira_webhook_error", {
+      message: error.message,
+      context: issueKey,
+      stack: error.stack
+    });
     return res.status(500).json({ ok: false });
   }
 });
@@ -143,6 +149,11 @@ router.post("/", async (req, res) => {
         await sendTextMessage(senderId, reply, { skipSend });
       } catch (error) {
         console.error("Failed to process messaging event:", error.message);
+        await sendAlert("messaging_event_error", {
+          message: error.message,
+          context: event.sender?.id || "unknown-sender",
+          stack: error.stack
+        });
       }
     }
   }

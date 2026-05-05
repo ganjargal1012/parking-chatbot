@@ -1,3 +1,4 @@
+const { env } = require("../config/env");
 const { isDatabaseConfigured, query } = require("../db/postgres");
 
 const users = {};
@@ -27,6 +28,14 @@ async function initializeStore() {
       created_at timestamptz not null default now()
     )
   `);
+
+  await query(
+    `
+      delete from conversation_states
+      where updated_at < now() - ($1 * interval '1 hour')
+    `,
+    [env.conversationStateTtlHours]
+  );
 }
 
 async function getUserState(senderId) {

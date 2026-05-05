@@ -23,10 +23,31 @@ Health endpoint:
 GET /
 ```
 
+Operational status endpoint:
+
+```text
+GET /status
+```
+
 Expected response:
 
 ```json
 {"status":"ok","service":"parking-chatbot"}
+```
+
+`GET /status` expected shape:
+
+```json
+{
+	"status": "ok",
+	"service": "parking-chatbot",
+	"uptimeSeconds": 120,
+	"database": {
+		"configured": true,
+		"connected": true
+	},
+	"timestamp": "2026-05-05T00:00:00.000Z"
+}
 ```
 
 ## Architecture
@@ -59,6 +80,8 @@ Required environment variables:
 PORT=8080
 DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-1-[REGION].pooler.supabase.com:6543/postgres
 DATABASE_SSL=true
+CONVERSATION_STATE_TTL_HOURS=168
+ALERT_WEBHOOK_URL=
 VERIFY_TOKEN=your_facebook_verify_token
 PAGE_ACCESS_TOKEN=your_page_access_token
 APP_SECRET=your_facebook_app_secret
@@ -82,6 +105,8 @@ Runtime validation rules:
 1. `PAGE_ACCESS_TOKEN` байвал `APP_SECRET` заавал байна.
 2. Jira credentials бүрэн байвал `JIRA_WEBHOOK_SECRET` заавал байна.
 3. `DATABASE_URL` байхгүй бол app memory fallback-оор асна.
+4. `CONVERSATION_STATE_TTL_HOURS` нь idle conversation state-ийг хэдэн цаг хадгалахыг заана. Default нь `168` буюу 7 хоног.
+5. `ALERT_WEBHOOK_URL` тохируулбал runtime алдаа webhook руу JSON POST хэлбэрээр илгээгдэнэ.
 
 Render blueprint дээр secret байдлаар оруулах key-үүд:
 
@@ -149,7 +174,8 @@ Expected behavior:
 
 1. App startup үед `conversation_states` table автоматаар үүснэ
 2. App startup үед `issue_sender_map` table автоматаар үүснэ
-3. Render restart хийсэн ч conversation state болон issue mapping хадгалагдана
+3. App startup үед `conversation_states`-ийн `updated_at` нь TTL-ээс хуучин мөрүүд автоматаар цэвэрлэгдэнэ
+4. Render restart хийсэн ч TTL доторх conversation state болон issue mapping хадгалагдана
 
 Хэрэв `DATABASE_URL` байхгүй бол:
 
@@ -163,18 +189,26 @@ Expected behavior:
 Deploy дараах үндсэн шалгалт:
 
 1. `https://parking-chatbot.onrender.com/` -> `status: ok`
-2. Messenger webhook verify success
-3. Bot reply Messenger дээр ирж байна
-4. Complaint үүсэхэд Jira issue үүсч байна
-5. Supabase дээр `conversation_states` table байна
-6. Supabase дээр `issue_sender_map` table байна
-7. Jira status change дээр Messenger notification ирж байна
+2. `https://parking-chatbot.onrender.com/status` -> `status: ok`
+3. Хэрэв DB ашиглаж байвал `/status` дээр `database.connected: true`
+4. Messenger webhook verify success
+5. Bot reply Messenger дээр ирж байна
+6. Complaint үүсэхэд Jira issue үүсч байна
+7. Supabase дээр `conversation_states` table байна
+8. Supabase дээр `issue_sender_map` table байна
+9. Jira status change дээр Messenger notification ирж байна
 
 DB persistence шалгах:
 
 1. Chatbot руу шинэ message явуулна
 2. Supabase `conversation_states` дээр row/update орж байна уу шалгана
 3. Complaint үүсгээд `issue_sender_map` дээр issue key хадгалагдсан эсэхийг шалгана
+
+Cleanup policy:
+
+1. `conversation_states` хүснэгт startup бүрт TTL purge авна
+2. Default retention нь 7 хоног
+3. Илүү богино эсвэл урт retention хэрэгтэй бол `CONVERSATION_STATE_TTL_HOURS`-ийг Render дээр override хийнэ
 
 ## Local Testing
 
@@ -213,6 +247,13 @@ Secrets management:
 1. `.env` болон production secret-үүдийг Git repo руу commit хийхгүй
 2. Token эсвэл API key repo руу орсон бол тухайн secret-ийг rotate хийнэ
 3. Render болон Supabase credential-үүдийг owner түвшинд хадгална
+
+Monitoring and alerting:
+
+1. `GET /status` endpoint-ийг uptime check эсвэл external monitor дээр ашиглана
+2. `ALERT_WEBHOOK_URL` дээр Slack, Discord, Teams, эсвэл generic webhook URL тавьж болно
+3. Startup failure, uncaught exception, unhandled rejection, Messenger/Jira webhook processing error үед alert илгээнэ
+4. Alert payload нь `text`, `eventType`, `details`, `timestamp` талбаруудтай JSON байна
 
 ## Troubleshooting
 
