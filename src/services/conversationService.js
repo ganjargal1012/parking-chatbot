@@ -298,10 +298,10 @@ async function submitComplaint(senderId, userState) {
     const jiraIssue = await createComplaintIssue(ticket);
     jiraIssueKey = jiraIssue.key;
     deduplicated = Boolean(jiraIssue.deduplicated);
-    linkIssueToSender(jiraIssueKey, senderId);
+    await linkIssueToSender(jiraIssueKey, senderId);
   }
 
-  resetUserState(senderId);
+  await resetUserState(senderId);
 
   return createQuickReplyMessage(
     [
@@ -318,15 +318,15 @@ async function submitComplaint(senderId, userState) {
   );
 }
 
-function moveToMenu(senderId) {
-  resetUserState(senderId);
-  saveUserState(senderId, { step: "menu" });
+async function moveToMenu(senderId) {
+  await resetUserState(senderId);
+  await saveUserState(senderId, { step: "menu" });
   return buildWelcomeMessage();
 }
 
-function startIntent(senderId, intent) {
+async function startIntent(senderId, intent) {
   if (intent === INTENT_COMPLAINT) {
-    saveUserState(senderId, { step: "complaint", intent: INTENT_COMPLAINT });
+    await saveUserState(senderId, { step: "complaint", intent: INTENT_COMPLAINT });
     return [
       "Гомдлоо дэлгэрэнгүй бичнэ үү. 📝",
       "Заавал оруулах мэдээлэл:",
@@ -338,12 +338,12 @@ function startIntent(senderId, intent) {
   }
 
   if (intent === INTENT_FEEDBACK) {
-    saveUserState(senderId, { step: "feedback", intent: INTENT_FEEDBACK });
+    await saveUserState(senderId, { step: "feedback", intent: INTENT_FEEDBACK });
     return buildFeedbackIntro();
   }
 
   if (intent === INTENT_OPERATOR) {
-    saveUserState(senderId, { step: "menu", intent: INTENT_OPERATOR });
+    await saveUserState(senderId, { step: "menu", intent: INTENT_OPERATOR });
     return buildOperatorMessage();
   }
 
@@ -353,7 +353,7 @@ function startIntent(senderId, intent) {
 async function getReplyForMessage(senderId, rawInput) {
   const text = typeof rawInput === "string" ? rawInput : rawInput?.text || "";
   const attachmentUrl = getAttachmentUrl(rawInput);
-  const userState = getUserState(senderId);
+  const userState = await getUserState(senderId);
   const normalizedText = normalizeInput(text);
   const rawCommand = typeof rawInput === "string" ? rawInput : rawInput?.payload || normalizedText;
   const normalizedCommand = normalizeInput(rawCommand);
@@ -398,7 +398,7 @@ async function getReplyForMessage(senderId, rawInput) {
 
   switch (userState.step) {
     case "start":
-      saveUserState(senderId, { step: "menu" });
+      await saveUserState(senderId, { step: "menu" });
       return buildWelcomeMessage();
 
     case "menu":
@@ -426,17 +426,17 @@ async function getReplyForMessage(senderId, rawInput) {
       }
 
       if (userState.intent === INTENT_FEEDBACK) {
-        saveUserState(senderId, { ...userState, step: "feedback" });
+        await saveUserState(senderId, { ...userState, step: "feedback" });
         return "Санал, хүсэлтээ бичнэ үү. 💬";
       }
 
-      saveUserState(senderId, { ...userState, name: text.trim(), step: "phone" });
+      await saveUserState(senderId, { ...userState, name: text.trim(), step: "phone" });
       return "Холбоо барих утасны дугаараа оруулна уу.";
     }
 
     case "phone": {
       if (attachmentUrl && (!text || normalizedText === "image")) {
-        saveUserState(senderId, {
+        await saveUserState(senderId, {
           ...userState,
           imageUrl: attachmentUrl,
           step: "phone"
@@ -459,17 +459,17 @@ async function getReplyForMessage(senderId, rawInput) {
           step: "submitted"
         };
 
-        saveUserState(senderId, nextState);
+        await saveUserState(senderId, nextState);
         return submitComplaint(senderId, nextState);
       }
 
       if (userState.intent === INTENT_FEEDBACK) {
-        saveUserState(senderId, { ...userState, phone: text.trim(), step: "feedback" });
+        await saveUserState(senderId, { ...userState, phone: text.trim(), step: "feedback" });
         return "Санал, хүсэлтээ бичнэ үү.";
       }
 
       if (userState.intent === INTENT_OPERATOR) {
-        saveUserState(senderId, { ...userState, phone: text.trim(), step: "operator_details" });
+        await saveUserState(senderId, { ...userState, phone: text.trim(), step: "operator_details" });
         return "Операторт дамжуулах тайлбараа бичнэ үү.";
       }
 
@@ -478,7 +478,7 @@ async function getReplyForMessage(senderId, rawInput) {
 
     case "complaint": {
       if (attachmentUrl && (!text || normalizedText === "image")) {
-        saveUserState(senderId, {
+        await saveUserState(senderId, {
           ...userState,
           imageUrl: attachmentUrl,
           step: "complaint"
@@ -503,7 +503,7 @@ async function getReplyForMessage(senderId, rawInput) {
       const detectedPlate = extractPlateFromText(text);
 
       if (!detectedPlate) {
-        saveUserState(senderId, {
+        await saveUserState(senderId, {
           ...userState,
           complaint: text.trim(),
           imageUrl: attachmentUrl || userState.imageUrl || "",
@@ -521,13 +521,13 @@ async function getReplyForMessage(senderId, rawInput) {
         step: "phone"
       };
 
-      saveUserState(senderId, nextState);
+      await saveUserState(senderId, nextState);
       return "Холбогдох утасны дугаараа оруулна уу. 📞";
     }
 
     case "complaint_plate": {
       if (attachmentUrl && (!text || normalizedText === "image")) {
-        saveUserState(senderId, {
+        await saveUserState(senderId, {
           ...userState,
           imageUrl: attachmentUrl,
           step: "complaint_plate"
@@ -549,7 +549,7 @@ async function getReplyForMessage(senderId, rawInput) {
         step: "phone"
       };
 
-      saveUserState(senderId, nextState);
+      await saveUserState(senderId, nextState);
       return "Холбогдох утасны дугаараа оруулна уу. 📞";
     }
 
@@ -566,7 +566,7 @@ async function getReplyForMessage(senderId, rawInput) {
         step: "feedback_review"
       };
 
-      saveUserState(senderId, nextState);
+      await saveUserState(senderId, nextState);
       return buildFeedbackSummary(nextState);
     }
 
@@ -582,7 +582,7 @@ async function getReplyForMessage(senderId, rawInput) {
       }
 
       if (normalizedCommand === "edit_complaint") {
-        saveUserState(senderId, { step: "complaint", intent: INTENT_COMPLAINT });
+        await saveUserState(senderId, { step: "complaint", intent: INTENT_COMPLAINT });
         return "Гомдлоо дахин дэлгэрэнгүй бичнэ үү. 📝";
       }
 
@@ -591,7 +591,7 @@ async function getReplyForMessage(senderId, rawInput) {
       }
 
       if (isNegativeAnswer(normalizedText) || isEditCommand(normalizedText)) {
-        saveUserState(senderId, { step: "complaint", intent: INTENT_COMPLAINT });
+        await saveUserState(senderId, { step: "complaint", intent: INTENT_COMPLAINT });
         return "Гомдлоо дахин дэлгэрэнгүй бичнэ үү. 📝";
       }
 
@@ -617,7 +617,7 @@ async function getReplyForMessage(senderId, rawInput) {
           deduplicated = Boolean(jiraIssue.deduplicated);
         }
 
-        resetUserState(senderId);
+        await resetUserState(senderId);
 
         return createQuickReplyMessage(
           [
@@ -632,7 +632,7 @@ async function getReplyForMessage(senderId, rawInput) {
       }
 
       if (["edit_feedback", "засах", "zasah"].includes(normalizedCommand) || isEditCommand(normalizedText)) {
-        saveUserState(senderId, { step: "feedback", intent: INTENT_FEEDBACK });
+        await saveUserState(senderId, { step: "feedback", intent: INTENT_FEEDBACK });
         return "Саналаа дахин бичнэ үү. 💬";
       }
 

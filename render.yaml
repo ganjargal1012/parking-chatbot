@@ -14,6 +14,10 @@ services:
         sync: false
       - key: APP_SECRET
         sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SSL
+        value: "true"
       - key: SKIP_MESSENGER_SEND
         value: "false"
       - key: JIRA_BASE_URL

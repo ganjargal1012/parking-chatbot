@@ -16,6 +16,8 @@ function parseNumber(value, fallback) {
 
 const env = {
   port: Number(process.env.PORT || 4000),
+  databaseUrl: process.env.DATABASE_URL || "",
+  databaseSsl: process.env.DATABASE_SSL !== "false",
   verifyToken: process.env.VERIFY_TOKEN || "ubparking_test",
   pageAccessToken: process.env.PAGE_ACCESS_TOKEN || "",
   appSecret: process.env.APP_SECRET || "",

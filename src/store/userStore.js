@@ -1,42 +1,136 @@
+const { isDatabaseConfigured, query } = require("../db/postgres");
+
 const users = {};
 const issueToSenderMap = {};
 
-function getUserState(senderId) {
-  if (!users[senderId]) {
-    users[senderId] = { step: "start" };
+function getDefaultState() {
+  return { step: "start" };
+}
+
+async function initializeStore() {
+  if (!isDatabaseConfigured()) {
+    return;
   }
 
-  return users[senderId];
+  await query(`
+    create table if not exists conversation_states (
+      sender_id text primary key,
+      state_json jsonb not null,
+      updated_at timestamptz not null default now()
+    )
+  `);
+
+  await query(`
+    create table if not exists issue_sender_map (
+      issue_key text primary key,
+      sender_id text not null,
+      created_at timestamptz not null default now()
+    )
+  `);
 }
 
-function saveUserState(senderId, nextState) {
-  users[senderId] = nextState;
-  return users[senderId];
+async function getUserState(senderId) {
+  if (!senderId) {
+    return getDefaultState();
+  }
+
+  if (!isDatabaseConfigured()) {
+    if (!users[senderId]) {
+      users[senderId] = getDefaultState();
+    }
+
+    return users[senderId];
+  }
+
+  const result = await query(
+    `select state_json from conversation_states where sender_id = $1`,
+    [senderId]
+  );
+
+  if (result.rowCount === 0) {
+    return getDefaultState();
+  }
+
+  return result.rows[0].state_json || getDefaultState();
 }
 
-function resetUserState(senderId) {
-  users[senderId] = { step: "start" };
-  return users[senderId];
+async function saveUserState(senderId, nextState) {
+  if (!senderId) {
+    return getDefaultState();
+  }
+
+  if (!isDatabaseConfigured()) {
+    users[senderId] = nextState;
+    return users[senderId];
+  }
+
+  const result = await query(
+    `
+      insert into conversation_states (sender_id, state_json, updated_at)
+      values ($1, $2::jsonb, now())
+      on conflict (sender_id)
+      do update set
+        state_json = excluded.state_json,
+        updated_at = now()
+      returning state_json
+    `,
+    [senderId, JSON.stringify(nextState)]
+  );
+
+  return result.rows[0].state_json || getDefaultState();
 }
 
-function linkIssueToSender(issueKey, senderId) {
+async function resetUserState(senderId) {
+  return saveUserState(senderId, getDefaultState());
+}
+
+async function linkIssueToSender(issueKey, senderId) {
   if (!issueKey || !senderId) {
     return "";
   }
 
-  issueToSenderMap[String(issueKey).toUpperCase()] = senderId;
-  return senderId;
+  const normalizedIssueKey = String(issueKey).toUpperCase();
+
+  if (!isDatabaseConfigured()) {
+    issueToSenderMap[normalizedIssueKey] = senderId;
+    return senderId;
+  }
+
+  const result = await query(
+    `
+      insert into issue_sender_map (issue_key, sender_id, created_at)
+      values ($1, $2, now())
+      on conflict (issue_key)
+      do update set sender_id = excluded.sender_id
+      returning sender_id
+    `,
+    [normalizedIssueKey, senderId]
+  );
+
+  return result.rows[0]?.sender_id || "";
 }
 
-function getSenderIdByIssue(issueKey) {
+async function getSenderIdByIssue(issueKey) {
   if (!issueKey) {
     return "";
   }
 
-  return issueToSenderMap[String(issueKey).toUpperCase()] || "";
+  const normalizedIssueKey = String(issueKey).toUpperCase();
+
+  if (!isDatabaseConfigured()) {
+    return issueToSenderMap[normalizedIssueKey] || "";
+  }
+
+  const result = await query(
+    `select sender_id from issue_sender_map where issue_key = $1`,
+    [normalizedIssueKey]
+  );
+
+  return result.rows[0]?.sender_id || "";
 }
 
 module.exports = {
+  initializeStore,
   getUserState,
   saveUserState,
   resetUserState,

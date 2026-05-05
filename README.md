@@ -12,6 +12,8 @@ Production environment дээр дараах secret-үүдийг platform-ийн
 
 ```env
 PORT=8080
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require
+DATABASE_SSL=true
 VERIFY_TOKEN=your_facebook_verify_token
 PAGE_ACCESS_TOKEN=your_facebook_page_access_token
 APP_SECRET=your_facebook_app_secret
@@ -71,6 +73,7 @@ Render дээр deploy хийх бол энэ repo доторх [render.yaml](re
 ### Render secrets to set
 
 ```text
+DATABASE_URL
 VERIFY_TOKEN
 PAGE_ACCESS_TOKEN
 APP_SECRET
@@ -120,7 +123,26 @@ npm run tunnel
 
 ```env
 PORT=4000
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require
+DATABASE_SSL=true
 VERIFY_TOKEN=ubparking_test
 PAGE_ACCESS_TOKEN=your_page_access_token
 SKIP_MESSENGER_SEND=false
 ```
+
+## Supabase Postgres
+
+Supabase ашиглах бол `Settings` -> `Database` -> `Connection string` хэсгээс `URI` эсвэл pooler connection string-ээ авна.
+
+Render дээр:
+
+1. `DATABASE_URL` дээр Supabase connection string-ээ оруулна.
+2. `DATABASE_SSL=true` хэвээр үлдээнэ.
+3. Deploy хийхэд app автоматаар `conversation_states` болон `issue_sender_map` table-уудыг үүсгэнэ.
+
+Одоогийн persistent data:
+
+1. User conversation state
+2. Jira issue key -> Messenger sender mapping
+
+`DATABASE_URL` байхгүй үед app хуучин шигээ in-memory store-оор ажиллана.

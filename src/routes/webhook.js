@@ -90,7 +90,7 @@ router.post("/jira", async (req, res) => {
     return res.status(200).json({ ok: true, skipped: true });
   }
 
-  const senderId = getSenderIdByIssue(issueKey);
+  const senderId = await getSenderIdByIssue(issueKey);
   const notification = buildJiraStatusNotification(issueKey, statusName);
 
   if (!senderId || !notification) {
