@@ -608,12 +608,10 @@ async function getReplyForMessage(senderId, rawInput) {
           feedback: userState.feedback
         });
         console.log("NEW FEEDBACK:", ticket);
-        let jiraIssueKey = "";
         let deduplicated = false;
 
         if (isJiraConfigured()) {
           const jiraIssue = await createFeedbackIssue(ticket);
-          jiraIssueKey = jiraIssue.key;
           deduplicated = Boolean(jiraIssue.deduplicated);
         }
 
@@ -623,9 +621,7 @@ async function getReplyForMessage(senderId, rawInput) {
           [
             deduplicated
               ? "Ижил санал саяхан ирсэн тул өмнөх Jira бүртгэл дээр нэмэгдлээ. ✅"
-              : "Таны санал амжилттай хүлээн авлаа. ✅",
-            jiraIssueKey ? `Issue key: ${jiraIssueKey}` : null,
-            `Дотоод дугаар: ${ticket.requestId}`
+              : "Таны санал амжилттай хүлээн авлаа. ✅"
           ].filter(Boolean).join("\n"),
           [createQuickReply("Үндсэн цэс", "SHOW_MENU")]
         );

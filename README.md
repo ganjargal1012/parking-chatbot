@@ -162,6 +162,27 @@ Jira webhook:
 2. Required header: `x-jira-webhook-secret`
 3. Header value: `JIRA_WEBHOOK_SECRET`
 
+## Meta Live Checklist
+
+Meta app-ийг жинхэнэ хэрэглээнд оруулахын өмнө:
+
+1. App-аа зөв Facebook Page-тэй холбоод Messenger product идэвхтэй байгаа эсэхийг шалгана.
+2. `https://parking-chatbot.onrender.com/webhook` callback URL болон `VERIFY_TOKEN` verify амжилттай болсон эсэхийг дахин шалгана.
+3. `messages` болон `messaging_postbacks` event-үүд subscribe хийгдсэн эсэхийг баталгаажуулна.
+4. Page access token нь production page-ийн зөв token мөн эсэхийг Render дээр шалгана.
+5. `APP_SECRET` нь Meta app-ийн production secret-тэй таарч байгаа эсэхийг шалгана.
+6. App Roles доторх test user-уудаас гадна бодит хэрэглэгч ашиглах бол app mode, permissions, review requirement-ийг Meta дээр шалгана.
+7. Welcome message, page description, operator contact зэрэг хэрэглэгчид харагдах мэдээллээ production хэлбэрээр эцэслэнэ.
+8. Бодит хэрэглэгчийн урсгалаар нэг бүрэн test хийнэ: Messenger -> chatbot -> Jira -> Jira status update -> Messenger notification.
+9. Launch өдөр Render logs, `/status`, Jira issue flow, Supabase table update-уудыг гараар хянаж эхэлнэ.
+
+Launch хийхийн өмнөх хамгийн сүүлийн шалгалт:
+
+1. Page руу test message явуулахад bot reply өгч байна.
+2. Complaint үүсэхэд Jira issue key ирж байна.
+3. Jira status өөрчлөгдөхөд Messenger notification буцаж ирж байна.
+4. `/status` endpoint дээр `status: ok` болон DB ашиглаж байвал `database.connected: true` байна.
+
 ## Supabase Postgres
 
 Recommended connection type:
