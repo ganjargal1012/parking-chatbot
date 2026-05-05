@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: parking-chatbot
+    runtime: docker
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VERIFY_TOKEN
+        sync: false
+      - key: PAGE_ACCESS_TOKEN
+        sync: false
+      - key: APP_SECRET
+        sync: false
+      - key: SKIP_MESSENGER_SEND
+        value: "false"
+      - key: JIRA_BASE_URL
+        sync: false
+      - key: JIRA_EMAIL
+        sync: false
+      - key: JIRA_API_TOKEN
+        sync: false
+      - key: JIRA_PROJECT_KEY
+        sync: false
+      - key: JIRA_COMPLAINT_ISSUE_TYPE
+        value: "[System] Incident"
+      - key: JIRA_FEEDBACK_ISSUE_TYPE
+        value: "Task"
+      - key: JIRA_COMPLAINT_PRIORITY
+        sync: false
+      - key: JIRA_FEEDBACK_PRIORITY
+        sync: false
+      - key: JIRA_COMPLAINT_LABELS
+        value: "chatbot,complaint"
+      - key: JIRA_FEEDBACK_LABELS
+        value: "chatbot,feedback"
+      - key: JIRA_DUPLICATE_WINDOW_MINUTES
+        value: "10"
+      - key: JIRA_WEBHOOK_SECRET
+        sync: false

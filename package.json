@@ -1,0 +1,24 @@
+{
+  "name": "parking-chatbot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "description": "Facebook Messenger chatbot for parking complaints and Jira integration",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "test": "echo \"No tests configured\"",
+    "test:webhook": "node scripts/testWebhook.js",
+    "tunnel": "npx ngrok http 4000"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.16.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
+}
