@@ -21,7 +21,7 @@ const INTENT_FEEDBACK = "feedback";
 const INTENT_OPERATOR = "operator";
 const MAIN_MENU_OPTIONS = [
   { title: "🚧 Хаалт нээгдэхгүй", payload: "MENU_BLOCKING", complaintType: "COMPLAINT_TYPE_BLOCKING" },
-  { title: "💳 Төлбөр төлөх", payload: "MENU_PAYMENT", complaintType: "COMPLAINT_TYPE_PAYMENT" },
+  { title: "💳 Төлбөр", payload: "MENU_PAYMENT", complaintType: "COMPLAINT_TYPE_PAYMENT" },
   { title: "📱 QR / Бүртгэл", payload: "MENU_QR", complaintType: "COMPLAINT_TYPE_QR" },
   { title: "👨‍💼 Оператор", payload: "MENU_OPERATOR" },
   { title: "⚙️ Бусад", payload: "MENU_OTHER", complaintType: "COMPLAINT_TYPE_OTHER" }
@@ -132,6 +132,24 @@ function buildOtherMenuMessage() {
       createQuickReply("📝 Гомдол гаргах", "OTHER_COMPLAINT"),
       createQuickReply("💡 Санал үлдээх", "OTHER_FEEDBACK"),
       createQuickReply("⬅️ Буцах", "SHOW_MENU")
+    ]
+  );
+}
+
+function buildPaymentInstructionMessage() {
+  return createQuickReplyMessage(
+    [
+      "💳 Төлбөр төлөх заавар",
+      "",
+      "📷 Гар утасныхаа камераар QR кодыг уншуулна",
+      "🔗 Линк дээр дарна",
+      "🚗 Дугаараа оруулна",
+      "💳 Төлбөр төлнө",
+      "🧾 И-баримт авна"
+    ].join("\n"),
+    [
+      createQuickReply("👨‍💼 Оператор", "MENU_OPERATOR"),
+      createQuickReply("Үндсэн цэс", "SHOW_MENU")
     ]
   );
 }
@@ -290,6 +308,14 @@ function getParkingSuggestionSelection(command, userState) {
   }
 
   return suggestions[selectedNumber - 1];
+}
+
+function buildBlockingPlatePrompt(parkingLotName) {
+  return [
+    parkingLotName ? `Таны сонгосон зогсоол: ${parkingLotName} 📍` : null,
+    "Одоо машиныхаа дугаарыг оруулна уу.",
+    "Жишээ: 1234УБА 🚗"
+  ].filter(Boolean).join("\n");
 }
 
 function isSkipImage(text) {
@@ -463,7 +489,7 @@ async function startComplaintFlow(senderId, complaintType) {
       [
         complaintTypeLabel,
         "",
-        "Асуудлыг хурдан шийдэхийн тулд таны одоо байгаа зогсоолыг тодорхойлох хэрэгтэй.",
+        "Та аль зогсоол дээр байгаагаа сонгоно уу.",
         "",
         "Зогсоолын нэрээ текстээр бичнэ үү 📍",
         "Жишээ: Naadam center"
@@ -514,6 +540,11 @@ async function getReplyForMessage(senderId, rawInput) {
 
   if (rawCommand === "MENU_OTHER") {
     return buildOtherMenuMessage();
+  }
+
+  if (rawCommand === "MENU_PAYMENT") {
+    await saveUserState(senderId, { step: "menu" });
+    return buildPaymentInstructionMessage();
   }
 
   if (normalizedCommand === "show_operator_number") {
@@ -691,19 +722,10 @@ async function getReplyForMessage(senderId, rawInput) {
           location: selectedSuggestedParking,
           parkingLotName: selectedSuggestedParking,
           suggestedParkings: [],
-          step: "blocking_location_identified"
+          step: "blocking_plate"
         });
 
-        return createQuickReplyMessage(
-          [
-            `Таны сонгосон зогсоол: ${selectedSuggestedParking} 📍`,
-            "Хэрэв тусламж хэрэгтэй бол оператортой холбогдоно уу."
-          ].join("\n"),
-          [
-            createQuickReply("👨‍💼 Оператор", "MENU_OPERATOR"),
-            createQuickReply("Үндсэн цэс", "SHOW_MENU")
-          ]
-        );
+        return buildBlockingPlatePrompt(selectedSuggestedParking);
       }
 
       const locationError = validateLocation(text);
@@ -747,12 +769,31 @@ async function getReplyForMessage(senderId, rawInput) {
         location: text.trim(),
         parkingLotName,
         suggestedParkings: [],
+        step: "blocking_plate"
+      });
+
+      return buildBlockingPlatePrompt(parkingLotName);
+    }
+
+    case "blocking_plate": {
+      const plateError = validatePlate(text);
+
+      if (plateError) {
+        return plateError;
+      }
+
+      await saveUserState(senderId, {
+        ...userState,
+        plate: normalizePlate(text),
         step: "blocking_location_identified"
       });
 
       return createQuickReplyMessage(
         [
-          `Таны байгаа зогсоол: ${parkingLotName} 📍`,
+          userState.parkingLotName
+            ? `Таны байгаа зогсоол: ${userState.parkingLotName} 📍`
+            : "Зогсоол сонгогдлоо 📍",
+          `Машины дугаар: ${normalizePlate(text)} 🚗`,
           "Хэрэв тусламж хэрэгтэй бол оператортой холбогдоно уу."
         ].join("\n"),
         [
@@ -768,8 +809,9 @@ async function getReplyForMessage(senderId, rawInput) {
           userState.parkingLotName
             ? `Таны байгаа зогсоол: ${userState.parkingLotName} 📍`
             : "Таны байршлыг хүлээн авлаа 📍",
+          userState.plate ? `Машины дугаар: ${userState.plate} 🚗` : null,
           "Үргэлжлүүлэх сонголтоо хийнэ үү."
-        ].join("\n"),
+        ].filter(Boolean).join("\n"),
         [
           createQuickReply("👨‍💼 Оператор", "MENU_OPERATOR"),
           createQuickReply("Үндсэн цэс", "SHOW_MENU")
