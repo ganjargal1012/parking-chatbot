@@ -3,6 +3,7 @@ const { getUserState, saveUserState, resetUserState, linkIssueToSender } = requi
 const { createComplaintIssue, createFeedbackIssue, isJiraConfigured } = require("./jiraService");
 const {
   createQuickReply,
+  createLocationQuickReply,
   createQuickReplyMessage,
   createPostbackButton,
   createButtonTemplate
@@ -278,6 +279,14 @@ function getAttachmentUrl(rawInput) {
   return rawInput?.attachmentUrl || "";
 }
 
+function getLocationCoordinates(rawInput) {
+  if (typeof rawInput === "string") {
+    return null;
+  }
+
+  return rawInput?.locationCoordinates || null;
+}
+
 function validateFeedback(text) {
   const value = text.trim();
 
@@ -321,7 +330,38 @@ function buildTicket(prefix, details) {
   };
 }
 
+function isBlockingComplaint(userState) {
+  return userState.complaintType === "COMPLAINT_TYPE_BLOCKING";
+}
+
 async function submitComplaint(senderId, userState) {
+  if (isBlockingComplaint(userState)) {
+    const ticket = buildTicket("BLK", {
+      complaint: userState.complaint,
+      complaintType: userState.complaintType || "",
+      parkingLotName: userState.parkingLotName || "",
+      plate: userState.plate,
+      imageUrl: userState.imageUrl || "",
+      phone: userState.phone
+    });
+
+    console.log("NEW BLOCKING REQUEST:", ticket);
+    await resetUserState(senderId);
+
+    return createQuickReplyMessage(
+      [
+        "Хаалт нээгдэхгүй асуудлын мэдээллийг хүлээн авлаа ✅",
+        userState.parkingLotName ? `Зогсоол: ${userState.parkingLotName}` : null,
+        "Яаралтай тусламж хэрэгтэй бол оператортой холбогдоно уу.",
+        "77144411"
+      ].filter(Boolean).join("\n"),
+      [
+        createQuickReply("👨‍💼 Оператор", "MENU_OPERATOR"),
+        createQuickReply("Үндсэн цэс", "SHOW_MENU")
+      ]
+    );
+  }
+
   const ticket = buildTicket("CMP", {
     complaint: userState.complaint,
     complaintType: userState.complaintType || "",
@@ -402,11 +442,16 @@ async function startComplaintFlow(senderId, complaintType) {
   await saveUserState(senderId, nextState);
 
   if (requiresExplicitLocation) {
-    return [
-      `${complaintTypeLabel} сонголоо.`,
-      "Хаалт нээгдэхгүй байгаа зогсоолын байршлыг бичнэ үү.",
-      "Жишээ: 3-р хороолол төв зогсоол"
-    ].join("\n");
+    return createQuickReplyMessage(
+      [
+        complaintTypeLabel,
+        "",
+        "Асуудлыг хурдан шийдэхийн тулд таны одоо байгаа зогсоолыг тодорхойлох хэрэгтэй.",
+        "",
+        "Доорх товчийг дарж байршлаа илгээнэ үү 📍"
+      ].join("\n"),
+      [createLocationQuickReply(), createQuickReply("⬅️ Буцах", "SHOW_MENU")]
+    );
   }
 
   return [
@@ -423,6 +468,7 @@ async function startComplaintFlow(senderId, complaintType) {
 async function getReplyForMessage(senderId, rawInput) {
   const text = typeof rawInput === "string" ? rawInput : rawInput?.text || "";
   const attachmentUrl = getAttachmentUrl(rawInput);
+  const locationCoordinates = getLocationCoordinates(rawInput);
   const userState = await getUserState(senderId);
   const normalizedText = normalizeInput(text);
   const rawCommand = typeof rawInput === "string" ? rawInput : rawInput?.payload || normalizedText;
@@ -620,6 +666,24 @@ async function getReplyForMessage(senderId, rawInput) {
     }
 
     case "complaint_location": {
+      if (locationCoordinates) {
+        await saveUserState(senderId, {
+          ...userState,
+          locationCoordinates,
+          parkingLotName: "Байршил илгээгдсэн",
+          step: "complaint"
+        });
+
+        return [
+          "Байршлыг хүлээн авлаа 📍",
+          "Одоо асуудлаа дэлгэрэнгүй бичнэ үү. 📝",
+          "Заавал оруулах мэдээлэл:",
+          "Машины дугаар",
+          "Утас",
+          "Зураг байвал хамт илгээж болно 🖼️"
+        ].join("\n");
+      }
+
       const locationError = validateLocation(text);
 
       if (locationError) {

@@ -130,13 +130,17 @@ router.post("/", async (req, res) => {
         const senderId = event.sender?.id;
         const text = event.message?.text;
         const imageAttachment = event.message?.attachments?.find((attachment) => attachment.type === "image");
+        const locationAttachment = event.message?.attachments?.find((attachment) => attachment.type === "location");
         const attachmentUrl = imageAttachment?.payload?.url;
+        const locationCoordinates = locationAttachment?.payload?.coordinates;
         const quickReplyPayload = event.message?.quick_reply?.payload;
         const postbackPayload = event.postback?.payload;
         const input = postbackPayload
           ? { payload: postbackPayload, text: postbackPayload }
           : quickReplyPayload
             ? { payload: quickReplyPayload, text: text || quickReplyPayload }
+            : locationCoordinates
+              ? { text: text || "location", locationCoordinates }
             : attachmentUrl
               ? { text: text || "image", attachmentUrl }
               : text;
