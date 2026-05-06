@@ -21,6 +21,14 @@ function createPostbackButton(title, payload) {
   };
 }
 
+function createPhoneNumberButton(title, payload) {
+  return {
+    type: "phone_number",
+    title,
+    payload
+  };
+}
+
 function createButtonTemplate(text, buttons) {
   return {
     attachment: {
@@ -58,6 +66,7 @@ module.exports = {
   createQuickReply,
   createQuickReplyMessage,
   createPostbackButton,
+  createPhoneNumberButton,
   createButtonTemplate,
   createGenericElement,
   createGenericTemplate

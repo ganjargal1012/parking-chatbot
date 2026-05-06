@@ -6,6 +6,7 @@ const {
   createQuickReply,
   createQuickReplyMessage,
   createPostbackButton,
+  createPhoneNumberButton,
   createButtonTemplate
 } = require("./messageBuilder");
 
@@ -116,7 +117,7 @@ function buildFeedbackSummary(state) {
 
 function buildOperatorMessage() {
   return createButtonTemplate("Оператортой холбогдох бол доорх дугаараар холбогдоно уу. 🤝", [
-    createPostbackButton("77144411", "SHOW_OPERATOR_NUMBER"),
+    createPhoneNumberButton("77144411", "+97677144411"),
     createPostbackButton("Цэс", "SHOW_MENU")
   ]);
 }
