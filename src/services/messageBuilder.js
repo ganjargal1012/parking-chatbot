@@ -6,12 +6,6 @@ function createQuickReply(title, payload) {
   };
 }
 
-function createLocationQuickReply() {
-  return {
-    content_type: "location"
-  };
-}
-
 function createQuickReplyMessage(text, quickReplies) {
   return {
     text,
@@ -62,7 +56,6 @@ function createGenericTemplate(elements) {
 
 module.exports = {
   createQuickReply,
-  createLocationQuickReply,
   createQuickReplyMessage,
   createPostbackButton,
   createButtonTemplate,

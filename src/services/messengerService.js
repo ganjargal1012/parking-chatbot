@@ -23,13 +23,18 @@ async function sendTextMessage(recipientId, message, options = {}) {
     return;
   }
 
-  await axios.post(
-    `https://graph.facebook.com/v19.0/me/messages?access_token=${env.pageAccessToken}`,
-    {
-      recipient: { id: recipientId },
-      message: normalizedMessage
-    }
-  );
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v19.0/me/messages?access_token=${env.pageAccessToken}`,
+      {
+        recipient: { id: recipientId },
+        message: normalizedMessage
+      }
+    );
+  } catch (error) {
+    console.error("Messenger send failed:", error.response?.data || error.message);
+    throw error;
+  }
 }
 
 module.exports = {

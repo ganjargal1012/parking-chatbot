@@ -71,6 +71,7 @@ Key runtime files:
 6. [src/store/userStore.js](c:/Users/User/Desktop/parking-chatbot/src/store/userStore.js): state persistence
 7. [src/db/postgres.js](c:/Users/User/Desktop/parking-chatbot/src/db/postgres.js): Postgres connection
 8. [render.yaml](c:/Users/User/Desktop/parking-chatbot/render.yaml): Render service definition
+9. [src/config/parkingPresets.js](c:/Users/User/Desktop/parking-chatbot/src/config/parkingPresets.js): blocking flow parking preset list
 
 ## Production Config
 

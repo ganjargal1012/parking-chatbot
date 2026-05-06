@@ -1,9 +1,9 @@
 const { randomUUID } = require("crypto");
+const { findExactParkingPreset, matchParkingPreset, suggestParkingPresets } = require("../config/parkingPresets");
 const { getUserState, saveUserState, resetUserState, linkIssueToSender } = require("../store/userStore");
 const { createComplaintIssue, createFeedbackIssue, isJiraConfigured } = require("./jiraService");
 const {
   createQuickReply,
-  createLocationQuickReply,
   createQuickReplyMessage,
   createPostbackButton,
   createButtonTemplate
@@ -251,6 +251,12 @@ function validateLocation(text) {
 
 function normalizeParkingLotName(text) {
   const value = text.trim().replace(/\s+/g, " ");
+  const presetMatch = matchParkingPreset(value);
+
+  if (presetMatch) {
+    return presetMatch;
+  }
+
   const match = value.match(
     /([A-Za-zА-Яа-яӨөҮү0-9-]+(?:\s+[A-Za-zА-Яа-яӨөҮү0-9-]+){0,4}\s+(?:зогсоол|parking))(?:\s+дээр|\s+д|\s+руу|\s+рүү)?$/iu
   );
@@ -267,6 +273,25 @@ function normalizeParkingLotName(text) {
     .trim();
 }
 
+function getParkingSuggestionSelection(command, userState) {
+  const suggestions = Array.isArray(userState?.suggestedParkings) ? userState.suggestedParkings : [];
+
+  if (suggestions.length === 0) {
+    return null;
+  }
+
+  const normalizedCommand = normalizeInput(String(command || ""));
+  const payloadMatch = normalizedCommand.match(/^select_parking_(\d+)$/);
+  const textMatch = normalizedCommand.match(/^(\d+)$/);
+  const selectedNumber = Number(payloadMatch?.[1] || textMatch?.[1]);
+
+  if (!Number.isInteger(selectedNumber) || selectedNumber < 1 || selectedNumber > suggestions.length) {
+    return null;
+  }
+
+  return suggestions[selectedNumber - 1];
+}
+
 function isSkipImage(text) {
   return ["алга", "alga", "байхгүй", "baihgui", "skip"].includes(normalizeInput(text));
 }
@@ -277,14 +302,6 @@ function getAttachmentUrl(rawInput) {
   }
 
   return rawInput?.attachmentUrl || "";
-}
-
-function getLocationCoordinates(rawInput) {
-  if (typeof rawInput === "string") {
-    return null;
-  }
-
-  return rawInput?.locationCoordinates || null;
 }
 
 function validateFeedback(text) {
@@ -448,9 +465,10 @@ async function startComplaintFlow(senderId, complaintType) {
         "",
         "Асуудлыг хурдан шийдэхийн тулд таны одоо байгаа зогсоолыг тодорхойлох хэрэгтэй.",
         "",
-        "Доорх товчийг дарж байршлаа илгээнэ үү 📍"
+        "Зогсоолын нэрээ текстээр бичнэ үү 📍",
+        "Жишээ: Naadam center"
       ].join("\n"),
-      [createLocationQuickReply(), createQuickReply("⬅️ Буцах", "SHOW_MENU")]
+      [createQuickReply("Үндсэн цэс", "SHOW_MENU")]
     );
   }
 
@@ -468,7 +486,6 @@ async function startComplaintFlow(senderId, complaintType) {
 async function getReplyForMessage(senderId, rawInput) {
   const text = typeof rawInput === "string" ? rawInput : rawInput?.text || "";
   const attachmentUrl = getAttachmentUrl(rawInput);
-  const locationCoordinates = getLocationCoordinates(rawInput);
   const userState = await getUserState(senderId);
   const normalizedText = normalizeInput(text);
   const rawCommand = typeof rawInput === "string" ? rawInput : rawInput?.payload || normalizedText;
@@ -666,22 +683,27 @@ async function getReplyForMessage(senderId, rawInput) {
     }
 
     case "complaint_location": {
-      if (locationCoordinates) {
+      const selectedSuggestedParking = getParkingSuggestionSelection(rawCommand, userState);
+
+      if (selectedSuggestedParking) {
         await saveUserState(senderId, {
           ...userState,
-          locationCoordinates,
-          parkingLotName: "Байршил илгээгдсэн",
-          step: "complaint"
+          location: selectedSuggestedParking,
+          parkingLotName: selectedSuggestedParking,
+          suggestedParkings: [],
+          step: "blocking_location_identified"
         });
 
-        return [
-          "Байршлыг хүлээн авлаа 📍",
-          "Одоо асуудлаа дэлгэрэнгүй бичнэ үү. 📝",
-          "Заавал оруулах мэдээлэл:",
-          "Машины дугаар",
-          "Утас",
-          "Зураг байвал хамт илгээж болно 🖼️"
-        ].join("\n");
+        return createQuickReplyMessage(
+          [
+            `Таны сонгосон зогсоол: ${selectedSuggestedParking} 📍`,
+            "Хэрэв тусламж хэрэгтэй бол оператортой холбогдоно уу."
+          ].join("\n"),
+          [
+            createQuickReply("👨‍💼 Оператор", "MENU_OPERATOR"),
+            createQuickReply("Үндсэн цэс", "SHOW_MENU")
+          ]
+        );
       }
 
       const locationError = validateLocation(text);
@@ -690,24 +712,69 @@ async function getReplyForMessage(senderId, rawInput) {
         return locationError;
       }
 
-      const parkingLotName = normalizeParkingLotName(text);
+      const exactParkingMatch = findExactParkingPreset(text);
+
+      if (!exactParkingMatch) {
+        const suggestions = suggestParkingPresets(text, 5);
+
+        if (suggestions.length > 0) {
+          await saveUserState(senderId, {
+            ...userState,
+            location: text.trim(),
+            suggestedParkings: suggestions,
+            step: "complaint_location"
+          });
+
+          return createQuickReplyMessage(
+            [
+              "Таны бичсэн нэртэй ойролцоо зогсоолууд:",
+              ...suggestions.map((suggestion, index) => `${index + 1}. ${suggestion}`),
+              "",
+              "Дугаарыг нь бичих эсвэл доорх товчоос сонгоно уу."
+            ].join("\n"),
+            [
+              ...suggestions.map((suggestion, index) => createQuickReply(String(index + 1), `SELECT_PARKING_${index + 1}`)),
+              createQuickReply("Үндсэн цэс", "SHOW_MENU")
+            ]
+          );
+        }
+      }
+
+      const parkingLotName = exactParkingMatch || normalizeParkingLotName(text);
 
       await saveUserState(senderId, {
         ...userState,
         location: text.trim(),
         parkingLotName,
-        step: "complaint"
+        suggestedParkings: [],
+        step: "blocking_location_identified"
       });
 
-      return [
-        `Ойлголоо. Зогсоол: ${parkingLotName} 📍`,
-        "Одоо асуудлаа дэлгэрэнгүй бичнэ үү. 📝",
-        "Заавал оруулах мэдээлэл:",
-        "Машины дугаар",
-        "Утас",
-        "Зураг байвал хамт илгээж болно 🖼️"
-      ].join("\n");
+      return createQuickReplyMessage(
+        [
+          `Таны байгаа зогсоол: ${parkingLotName} 📍`,
+          "Хэрэв тусламж хэрэгтэй бол оператортой холбогдоно уу."
+        ].join("\n"),
+        [
+          createQuickReply("👨‍💼 Оператор", "MENU_OPERATOR"),
+          createQuickReply("Үндсэн цэс", "SHOW_MENU")
+        ]
+      );
     }
+
+    case "blocking_location_identified":
+      return createQuickReplyMessage(
+        [
+          userState.parkingLotName
+            ? `Таны байгаа зогсоол: ${userState.parkingLotName} 📍`
+            : "Таны байршлыг хүлээн авлаа 📍",
+          "Үргэлжлүүлэх сонголтоо хийнэ үү."
+        ].join("\n"),
+        [
+          createQuickReply("👨‍💼 Оператор", "MENU_OPERATOR"),
+          createQuickReply("Үндсэн цэс", "SHOW_MENU")
+        ]
+      );
 
     case "complaint_plate": {
       if (attachmentUrl && (!text || normalizedText === "image")) {
