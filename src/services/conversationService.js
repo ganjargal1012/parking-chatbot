@@ -5,9 +5,7 @@ const {
   createQuickReply,
   createQuickReplyMessage,
   createPostbackButton,
-  createButtonTemplate,
-  createGenericElement,
-  createGenericTemplate
+  createButtonTemplate
 } = require("./messageBuilder");
 
 const POSITIVE_ANSWERS = new Set(["тийм", "tiim", "yes", "y", "ok", "za"]);
@@ -20,36 +18,37 @@ const EDIT_COMMANDS = new Set(["засах", "zasah", "edit"]);
 const INTENT_COMPLAINT = "complaint";
 const INTENT_FEEDBACK = "feedback";
 const INTENT_OPERATOR = "operator";
-const COMPLAINT_TYPES = [
-  { title: "Хаалт", payload: "COMPLAINT_TYPE_BLOCKING" },
-  { title: "Төлбөр", payload: "COMPLAINT_TYPE_PAYMENT" },
-  { title: "Ажилтан", payload: "COMPLAINT_TYPE_STAFF" },
-  { title: "Бусад", payload: "COMPLAINT_TYPE_OTHER" }
+const MAIN_MENU_OPTIONS = [
+  { title: "🚧 Хаалт нээгдэхгүй", payload: "MENU_BLOCKING", complaintType: "COMPLAINT_TYPE_BLOCKING" },
+  { title: "💳 Төлбөр төлөх", payload: "MENU_PAYMENT", complaintType: "COMPLAINT_TYPE_PAYMENT" },
+  { title: "📱 QR / Бүртгэл", payload: "MENU_QR", complaintType: "COMPLAINT_TYPE_QR" },
+  { title: "👨‍💼 Оператор", payload: "MENU_OPERATOR" },
+  { title: "⚙️ Бусад", payload: "MENU_OTHER", complaintType: "COMPLAINT_TYPE_OTHER" }
 ];
 
 function getComplaintTypeLabel(payload) {
   const mapping = {
-    COMPLAINT_TYPE_BLOCKING: "Зам хаасан / буруу байрласан",
-    COMPLAINT_TYPE_PAYMENT: "Төлбөртэй холбоотой",
-    COMPLAINT_TYPE_STAFF: "Ажилтан, үйлчилгээ",
+    COMPLAINT_TYPE_BLOCKING: "Хаалт нээгдэхгүй",
+    COMPLAINT_TYPE_PAYMENT: "Төлбөр төлөх",
+    COMPLAINT_TYPE_QR: "QR / Бүртгэл",
     COMPLAINT_TYPE_OTHER: "Бусад"
   };
 
   return mapping[payload] || null;
 }
 
+function getComplaintTypeFromMenuPayload(payload) {
+  return MAIN_MENU_OPTIONS.find((option) => option.payload === payload)?.complaintType || "";
+}
+
 function createMenuMessage() {
-  return createGenericTemplate([
-    createGenericElement(
+  return createQuickReplyMessage(
+    [
       "UB Parking Туслах 👋",
-      "Гомдол бүртгүүлэх, санал үлдээх, оператортой холбогдох боломжтой.",
-      [
-        createPostbackButton("Гомдол гаргах", "MENU_COMPLAINT"),
-        createPostbackButton("Санал үлдээх", "MENU_FEEDBACK"),
-        createPostbackButton("Оператортай холбогдох", "MENU_OPERATOR")
-      ]
-    )
-  ]);
+      "Доорх төрлөөс асуудлаа сонгоно уу."
+    ].join("\n"),
+    MAIN_MENU_OPTIONS.map((option) => createQuickReply(option.title, option.payload))
+  );
 }
 
 function buildWelcomeMessage() {
@@ -61,13 +60,13 @@ function buildHelpMessage() {
     [
       "Ашиглах заавар 📌",
       "1. Доорх цэснээс хэрэгцээгээ сонгоно.",
-      "2. Гомдол, санал, оператор гэсэн урсгалуудаас сонгож болно.",
+      "2. Хаалт, төлбөр, QR / бүртгэл, оператор, бусад гэсэн сонголтуудаас сонгож болно.",
       "3. Гомдол дээр машиныхаа дугаар, байршил, утас, тайлбараа хамт бичнэ.",
       "4. Хэзээ ч `эхлэх` гэж бичээд үндсэн цэс рүү буцаж орж болно."
     ].join("\n"),
     [
       createQuickReply("Үндсэн цэс", "SHOW_MENU"),
-      createQuickReply("Гомдол", "MENU_COMPLAINT")
+      createQuickReply("👨‍💼 Оператор", "MENU_OPERATOR")
     ]
   );
 }
@@ -122,6 +121,19 @@ function buildOperatorMessage() {
   ]);
 }
 
+function buildOtherMenuMessage() {
+  return createQuickReplyMessage(
+    [
+      "Та дараах үйлдлийг сонгоно уу 👇"
+    ].join("\n"),
+    [
+      createQuickReply("📝 Гомдол гаргах", "OTHER_COMPLAINT"),
+      createQuickReply("💡 Санал үлдээх", "OTHER_FEEDBACK"),
+      createQuickReply("⬅️ Буцах", "SHOW_MENU")
+    ]
+  );
+}
+
 function normalizeInput(text) {
   return text.trim().toLowerCase();
 }
@@ -130,7 +142,15 @@ function getIntentFromInput(text) {
   const mapping = {
     MENU_COMPLAINT: INTENT_COMPLAINT,
     START_COMPLAINT: INTENT_COMPLAINT,
-    MENU_FEEDBACK: INTENT_FEEDBACK,
+    гомдол: INTENT_COMPLAINT,
+    complaint: INTENT_COMPLAINT,
+    MENU_BLOCKING: INTENT_COMPLAINT,
+    MENU_PAYMENT: INTENT_COMPLAINT,
+    MENU_QR: INTENT_COMPLAINT,
+    OTHER_COMPLAINT: INTENT_COMPLAINT,
+    санал: INTENT_FEEDBACK,
+    feedback: INTENT_FEEDBACK,
+    OTHER_FEEDBACK: INTENT_FEEDBACK,
     MENU_OPERATOR: INTENT_OPERATOR
   };
 
@@ -285,6 +305,7 @@ function buildTicket(prefix, details) {
 async function submitComplaint(senderId, userState) {
   const ticket = buildTicket("CMP", {
     complaint: userState.complaint,
+    complaintType: userState.complaintType || "",
     plate: userState.plate,
     imageUrl: userState.imageUrl || "",
     phone: userState.phone
@@ -350,6 +371,36 @@ async function startIntent(senderId, intent) {
   return buildWelcomeMessage();
 }
 
+async function startComplaintFlow(senderId, complaintType) {
+  const complaintTypeLabel = getComplaintTypeLabel(complaintType);
+  const requiresExplicitLocation = complaintType === "COMPLAINT_TYPE_BLOCKING";
+  const nextState = {
+    step: requiresExplicitLocation ? "complaint_location" : "complaint",
+    intent: INTENT_COMPLAINT,
+    complaintType: complaintType || ""
+  };
+
+  await saveUserState(senderId, nextState);
+
+  if (requiresExplicitLocation) {
+    return [
+      `${complaintTypeLabel} сонголоо.`,
+      "Аль зогсоол дээр хаалт нээгдэхгүй байгааг бичнэ үү.",
+      "Жишээ: 3-р хороолол төв зогсоол"
+    ].join("\n");
+  }
+
+  return [
+    complaintTypeLabel ? `${complaintTypeLabel} сонголоо.` : "Гомдлын төрлөө сонголоо.",
+    "Одоо асуудлаа дэлгэрэнгүй бичнэ үү. 📝",
+    "Заавал оруулах мэдээлэл:",
+    "Машины дугаар",
+    "Байршил",
+    "Утас",
+    "Зураг байвал хамт илгээж болно 🖼️"
+  ].join("\n");
+}
+
 async function getReplyForMessage(senderId, rawInput) {
   const text = typeof rawInput === "string" ? rawInput : rawInput?.text || "";
   const attachmentUrl = getAttachmentUrl(rawInput);
@@ -358,6 +409,7 @@ async function getReplyForMessage(senderId, rawInput) {
   const rawCommand = typeof rawInput === "string" ? rawInput : rawInput?.payload || normalizedText;
   const normalizedCommand = normalizeInput(rawCommand);
   const intent = getIntentFromInput(rawCommand);
+  const selectedComplaintType = getComplaintTypeFromMenuPayload(rawCommand);
 
   if (normalizedCommand === "show_menu") {
     return moveToMenu(senderId);
@@ -365,6 +417,21 @@ async function getReplyForMessage(senderId, rawInput) {
 
   if (normalizedCommand === "show_help") {
     return buildHelpMessage();
+  }
+
+  if (normalizedText === "дугаар" || normalizedText === "utas" || normalizedText === "utasnii dugaar") {
+    return createQuickReplyMessage(
+      [
+        "Операторын утас ☎️",
+        "77144411",
+        "Ажлын цагаар энэ дугаараар холбогдоно уу."
+      ].join("\n"),
+      [createQuickReply("Үндсэн цэс", "SHOW_MENU")]
+    );
+  }
+
+  if (rawCommand === "MENU_OTHER") {
+    return buildOtherMenuMessage();
   }
 
   if (normalizedCommand === "show_operator_number") {
@@ -379,6 +446,14 @@ async function getReplyForMessage(senderId, rawInput) {
   }
 
   if (intent) {
+    if (intent === INTENT_COMPLAINT && selectedComplaintType) {
+      return startComplaintFlow(senderId, selectedComplaintType);
+    }
+
+    if (rawCommand === "OTHER_COMPLAINT") {
+      return startComplaintFlow(senderId, "COMPLAINT_TYPE_OTHER");
+    }
+
     return startIntent(senderId, intent);
   }
 
@@ -523,6 +598,29 @@ async function getReplyForMessage(senderId, rawInput) {
 
       await saveUserState(senderId, nextState);
       return "Холбогдох утасны дугаараа оруулна уу. 📞";
+    }
+
+    case "complaint_location": {
+      const locationError = validateLocation(text);
+
+      if (locationError) {
+        return locationError;
+      }
+
+      await saveUserState(senderId, {
+        ...userState,
+        location: text.trim(),
+        step: "complaint"
+      });
+
+      return [
+        `Байршил: ${text.trim()} 📍`,
+        "Одоо асуудлаа дэлгэрэнгүй бичнэ үү. 📝",
+        "Заавал оруулах мэдээлэл:",
+        "Машины дугаар",
+        "Утас",
+        "Зураг байвал хамт илгээж болно 🖼️"
+      ].join("\n");
     }
 
     case "complaint_plate": {
