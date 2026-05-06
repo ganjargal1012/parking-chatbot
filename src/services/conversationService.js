@@ -75,10 +75,11 @@ function buildComplaintSummary(state) {
   return createQuickReplyMessage(
     [
       "Таны оруулсан мэдээлэл 🧾",
+      state.parkingLotName ? `Зогсоол: ${state.parkingLotName} 📍` : null,
       `Тайлбар: ${state.complaint} 📝`,
       `Утас: ${state.phone} 📞`,
       "Доорх сонголтоор үргэлжлүүлнэ үү."
-    ].join("\n"),
+    ].filter(Boolean).join("\n"),
     [
       createQuickReply("Батлах", "SUBMIT_COMPLAINT"),
       createQuickReply("Засах", "EDIT_COMPLAINT"),
@@ -247,6 +248,24 @@ function validateLocation(text) {
   return null;
 }
 
+function normalizeParkingLotName(text) {
+  const value = text.trim().replace(/\s+/g, " ");
+  const match = value.match(
+    /([A-Za-zА-Яа-яӨөҮү0-9-]+(?:\s+[A-Za-zА-Яа-яӨөҮү0-9-]+){0,4}\s+(?:зогсоол|parking))(?:\s+дээр|\s+д|\s+руу|\s+рүү)?$/iu
+  );
+
+  if (match) {
+    return match[1].trim();
+  }
+
+  return value
+    .replace(/\s+дээр$/iu, "")
+    .replace(/\s+д$/iu, "")
+    .replace(/\s+руу$/iu, "")
+    .replace(/\s+рүү$/iu, "")
+    .trim();
+}
+
 function isSkipImage(text) {
   return ["алга", "alga", "байхгүй", "baihgui", "skip"].includes(normalizeInput(text));
 }
@@ -385,7 +404,7 @@ async function startComplaintFlow(senderId, complaintType) {
   if (requiresExplicitLocation) {
     return [
       `${complaintTypeLabel} сонголоо.`,
-      "Аль зогсоол дээр хаалт нээгдэхгүй байгааг бичнэ үү.",
+      "Хаалт нээгдэхгүй байгаа зогсоолын байршлыг бичнэ үү.",
       "Жишээ: 3-р хороолол төв зогсоол"
     ].join("\n");
   }
@@ -607,14 +626,17 @@ async function getReplyForMessage(senderId, rawInput) {
         return locationError;
       }
 
+      const parkingLotName = normalizeParkingLotName(text);
+
       await saveUserState(senderId, {
         ...userState,
         location: text.trim(),
+        parkingLotName,
         step: "complaint"
       });
 
       return [
-        `Байршил: ${text.trim()} 📍`,
+        `Ойлголоо. Зогсоол: ${parkingLotName} 📍`,
         "Одоо асуудлаа дэлгэрэнгүй бичнэ үү. 📝",
         "Заавал оруулах мэдээлэл:",
         "Машины дугаар",
