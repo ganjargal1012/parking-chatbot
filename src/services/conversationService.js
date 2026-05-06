@@ -22,7 +22,6 @@ const INTENT_OPERATOR = "operator";
 const MAIN_MENU_OPTIONS = [
   { title: "🚧 Хаалт нээгдэхгүй", payload: "MENU_BLOCKING", complaintType: "COMPLAINT_TYPE_BLOCKING" },
   { title: "💳 Төлбөр", payload: "MENU_PAYMENT", complaintType: "COMPLAINT_TYPE_PAYMENT" },
-  { title: "📱 QR / Бүртгэл", payload: "MENU_QR", complaintType: "COMPLAINT_TYPE_QR" },
   { title: "👨‍💼 Оператор", payload: "MENU_OPERATOR" },
   { title: "⚙️ Бусад", payload: "MENU_OTHER", complaintType: "COMPLAINT_TYPE_OTHER" }
 ];
@@ -31,7 +30,6 @@ function getComplaintTypeLabel(payload) {
   const mapping = {
     COMPLAINT_TYPE_BLOCKING: "Хаалт нээгдэхгүй",
     COMPLAINT_TYPE_PAYMENT: "Төлбөр төлөх",
-    COMPLAINT_TYPE_QR: "QR / Бүртгэл",
     COMPLAINT_TYPE_OTHER: "Бусад"
   };
 
@@ -61,7 +59,7 @@ function buildHelpMessage() {
     [
       "Ашиглах заавар 📌",
       "1. Доорх цэснээс хэрэгцээгээ сонгоно.",
-      "2. Хаалт, төлбөр, QR / бүртгэл, оператор, бусад гэсэн сонголтуудаас сонгож болно.",
+      "2. Хаалт, төлбөр, оператор, бусад гэсэн сонголтуудаас сонгож болно.",
       "3. Гомдол дээр машиныхаа дугаар, байршил, утас, тайлбараа хамт бичнэ.",
       "4. Хэзээ ч `эхлэх` гэж бичээд үндсэн цэс рүү буцаж орж болно."
     ].join("\n"),
@@ -141,11 +139,11 @@ function buildPaymentInstructionMessage() {
     [
       "💳 Төлбөр төлөх заавар",
       "",
-      "📷 Гар утасныхаа камераар QR кодыг уншуулна",
-      "🔗 Линк дээр дарна",
-      "🚗 Дугаараа оруулна",
-      "💳 Төлбөр төлнө",
-      "🧾 И-баримт авна"
+      "1️⃣ QR кодоо камераар уншуулна",
+      "2️⃣ Нээгдсэн линк дээр дарна",
+      "3️⃣ Машины дугаараа оруулна",
+      "4️⃣ Төлбөрөө төлнө",
+      "5️⃣ И-баримтаа авна"
     ].join("\n"),
     [
       createQuickReply("👨‍💼 Оператор", "MENU_OPERATOR"),
@@ -166,7 +164,6 @@ function getIntentFromInput(text) {
     complaint: INTENT_COMPLAINT,
     MENU_BLOCKING: INTENT_COMPLAINT,
     MENU_PAYMENT: INTENT_COMPLAINT,
-    MENU_QR: INTENT_COMPLAINT,
     OTHER_COMPLAINT: INTENT_COMPLAINT,
     санал: INTENT_FEEDBACK,
     feedback: INTENT_FEEDBACK,
