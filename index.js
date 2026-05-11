@@ -30,7 +30,10 @@ async function bootstrap() {
   const app = createApp();
 
   app.listen(env.port, () => {
-    console.log(`Server listening on port ${env.port}`);
+    const configuredPort = process.env.PORT;
+    const portSource = configuredPort ? "PORT env" : "default fallback";
+
+    console.log(`Server listening on port ${env.port} (${portSource}${configuredPort ? `=${configuredPort}` : "=4000"})`);
   });
 }
 
