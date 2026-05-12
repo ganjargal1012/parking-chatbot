@@ -19,6 +19,7 @@ const env = {
   databaseUrl: process.env.DATABASE_URL || "",
   databaseSsl: process.env.DATABASE_SSL !== "false",
   conversationStateTtlHours: parseNumber(process.env.CONVERSATION_STATE_TTL_HOURS, 168),
+  humanTakeoverTimeoutMinutes: parseNumber(process.env.HUMAN_TAKEOVER_TIMEOUT_MINUTES, 30),
   alertWebhookUrl: process.env.ALERT_WEBHOOK_URL || "",
   verifyToken: process.env.VERIFY_TOKEN || "ubparking_test",
   pageAccessToken: process.env.PAGE_ACCESS_TOKEN || "",

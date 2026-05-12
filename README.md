@@ -82,6 +82,7 @@ PORT=8080
 DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-1-[REGION].pooler.supabase.com:6543/postgres
 DATABASE_SSL=true
 CONVERSATION_STATE_TTL_HOURS=168
+HUMAN_TAKEOVER_TIMEOUT_MINUTES=30
 ALERT_WEBHOOK_URL=
 VERIFY_TOKEN=your_facebook_verify_token
 PAGE_ACCESS_TOKEN=your_page_access_token
@@ -107,7 +108,18 @@ Runtime validation rules:
 2. Jira credentials бүрэн байвал `JIRA_WEBHOOK_SECRET` заавал байна.
 3. `DATABASE_URL` байхгүй бол app memory fallback-оор асна.
 4. `CONVERSATION_STATE_TTL_HOURS` нь idle conversation state-ийг хэдэн цаг хадгалахыг заана. Default нь `168` буюу 7 хоног.
-5. `ALERT_WEBHOOK_URL` тохируулбал runtime алдаа webhook руу JSON POST хэлбэрээр илгээгдэнэ.
+5. `HUMAN_TAKEOVER_TIMEOUT_MINUTES` нь оператор хариулснаас хойш bot хэдэн минут дуугүй байхыг заана. Default нь `30`.
+6. `ALERT_WEBHOOK_URL` тохируулбал runtime алдаа webhook руу JSON POST хэлбэрээр илгээгдэнэ.
+
+Render production recommendation:
+
+1. `HUMAN_TAKEOVER_TIMEOUT_MINUTES=60` гэж тавих нь support agent conversation авч дуусахаас өмнө bot буцаад орж ирэх эрсдэлийг багасгана.
+
+Messenger human takeover:
+
+1. Operator-ийн page reply webhook дээр echo event болж ирэхэд conversation `HUMAN` mode руу орно.
+2. `HUMAN` mode үед customer-ийн дараагийн inbound message-үүдэд bot reply хийхгүй.
+3. `HUMAN_TAKEOVER_TIMEOUT_MINUTES` өнгөрсний дараах эхний customer message дээр conversation автоматаар `BOT` mode руу буцаж, menu flow-с үргэлжилнэ.
 
 Render blueprint дээр secret байдлаар оруулах key-үүд:
 

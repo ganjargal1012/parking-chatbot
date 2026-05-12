@@ -18,6 +18,8 @@ services:
         sync: false
       - key: DATABASE_SSL
         value: "true"
+      - key: HUMAN_TAKEOVER_TIMEOUT_MINUTES
+        value: "15"
       - key: SKIP_MESSENGER_SEND
         value: "false"
       - key: JIRA_BASE_URL
@@ -41,6 +43,6 @@ services:
       - key: JIRA_FEEDBACK_LABELS
         value: "chatbot,feedback"
       - key: JIRA_DUPLICATE_WINDOW_MINUTES
-        value: "10"
+        value: "30"
       - key: JIRA_WEBHOOK_SECRET
         sync: false

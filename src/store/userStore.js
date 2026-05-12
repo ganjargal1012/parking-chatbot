@@ -1,11 +1,12 @@
 const { env } = require("../config/env");
+const { applyDefaultConversationState } = require("../services/conversationModeService");
 const { isDatabaseConfigured, query } = require("../db/postgres");
 
 const users = {};
 const issueToSenderMap = {};
 
 function getDefaultState() {
-  return { step: "start" };
+  return applyDefaultConversationState();
 }
 
 async function initializeStore() {
@@ -48,7 +49,7 @@ async function getUserState(senderId) {
       users[senderId] = getDefaultState();
     }
 
-    return users[senderId];
+    return applyDefaultConversationState(users[senderId]);
   }
 
   const result = await query(
@@ -60,7 +61,7 @@ async function getUserState(senderId) {
     return getDefaultState();
   }
 
-  return result.rows[0].state_json || getDefaultState();
+  return applyDefaultConversationState(result.rows[0].state_json || getDefaultState());
 }
 
 async function saveUserState(senderId, nextState) {

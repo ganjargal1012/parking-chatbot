@@ -10,6 +10,7 @@
     "start": "node index.js",
     "dev": "node index.js",
     "test": "echo \"No tests configured\"",
+    "test:human-takeover": "node --test scripts/testHumanTakeover.js",
     "test:webhook": "node scripts/testWebhook.js",
     "tunnel": "npx ngrok http 4000"
   },

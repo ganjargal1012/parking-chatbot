@@ -2,10 +2,20 @@ const crypto = require("crypto");
 const express = require("express");
 
 const { env } = require("../config/env");
+const {
+  BOT_MODE,
+  HUMAN_MODE,
+  getConversationParticipantId,
+  isEchoMessageEvent,
+  isHumanTakeoverEvent,
+  buildHumanModeState,
+  buildBotModeState,
+  isHumanModeExpired
+} = require("../services/conversationModeService");
 const { getReplyForMessage } = require("../services/conversationService");
 const { sendAlert } = require("../services/monitoringService");
 const { sendTextMessage } = require("../services/messengerService");
-const { getSenderIdByIssue } = require("../store/userStore");
+const { getSenderIdByIssue, getUserState, saveUserState } = require("../store/userStore");
 
 const router = express.Router();
 
@@ -64,6 +74,44 @@ function buildJiraStatusNotification(issueKey, statusName) {
   }
 
   return [message, `Бүртгэлийн дугаар: ${issueKey}`].join("\n");
+}
+
+function buildHumanTakeoverNotification() {
+  return "👨‍💼 Оператор холбогдлоо";
+}
+
+function buildBotReactivationNotification() {
+  return "🤖 Автомат туслах дахин идэвхжлээ";
+}
+
+async function activateHumanTakeover(conversationId, eventTimestamp) {
+  if (!conversationId) {
+    return { activated: false, state: buildBotModeState() };
+  }
+
+  const currentState = await getUserState(conversationId);
+  const nextState = buildHumanModeState(currentState, eventTimestamp);
+  await saveUserState(conversationId, nextState);
+
+  return {
+    activated: currentState.mode !== HUMAN_MODE,
+    state: nextState
+  };
+}
+
+async function autoReturnConversationToBot(conversationId) {
+  if (!conversationId) {
+    return { reactivated: false, state: buildBotModeState() };
+  }
+
+  const currentState = await getUserState(conversationId);
+  const nextState = buildBotModeState();
+  await saveUserState(conversationId, nextState);
+
+  return {
+    reactivated: currentState.mode === HUMAN_MODE,
+    state: nextState
+  };
 }
 
 router.get("/", (req, res) => {
@@ -127,7 +175,22 @@ router.post("/", async (req, res) => {
   for (const entry of body.entry || []) {
     for (const event of entry.messaging || []) {
       try {
-        const senderId = event.sender?.id;
+        if (isHumanTakeoverEvent(event)) {
+          const conversationId = getConversationParticipantId(event);
+          const takeover = await activateHumanTakeover(conversationId, event.timestamp);
+
+          if (takeover.activated) {
+            await sendTextMessage(conversationId, buildHumanTakeoverNotification(), { skipSend });
+          }
+
+          continue;
+        }
+
+        if (isEchoMessageEvent(event)) {
+          continue;
+        }
+
+        const senderId = getConversationParticipantId(event);
         const text = event.message?.text;
         const imageAttachment = event.message?.attachments?.find((attachment) => attachment.type === "image");
         const attachmentUrl = imageAttachment?.payload?.url;
@@ -145,8 +208,25 @@ router.post("/", async (req, res) => {
           continue;
         }
 
+        const userState = await getUserState(senderId);
+
+        if (userState.mode === HUMAN_MODE) {
+          if (!isHumanModeExpired(userState, env.humanTakeoverTimeoutMinutes)) {
+            continue;
+          }
+
+          const autoReturn = await autoReturnConversationToBot(senderId);
+
+          if (autoReturn.reactivated) {
+            await sendTextMessage(senderId, buildBotReactivationNotification(), { skipSend });
+          }
+        }
+
         const reply = await getReplyForMessage(senderId, input);
-        await sendTextMessage(senderId, reply, { skipSend });
+
+        if (reply) {
+          await sendTextMessage(senderId, reply, { skipSend });
+        }
       } catch (error) {
         console.error("Failed to process messaging event:", error.message);
         await sendAlert("messaging_event_error", {
@@ -164,4 +244,9 @@ router.post("/", async (req, res) => {
 module.exports = router;
 module.exports.getJiraStatusMessage = getJiraStatusMessage;
 module.exports.buildJiraStatusNotification = buildJiraStatusNotification;
+module.exports.buildHumanTakeoverNotification = buildHumanTakeoverNotification;
+module.exports.buildBotReactivationNotification = buildBotReactivationNotification;
 module.exports.verifyMessengerSignature = verifyMessengerSignature;
+module.exports.activateHumanTakeover = activateHumanTakeover;
+module.exports.autoReturnConversationToBot = autoReturnConversationToBot;
+module.exports.autoReturnConversationToBot = autoReturnConversationToBot;
