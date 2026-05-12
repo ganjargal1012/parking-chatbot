@@ -3,7 +3,6 @@ const express = require("express");
 
 const { env } = require("../config/env");
 const {
-  BOT_MODE,
   HUMAN_MODE,
   getConversationParticipantId,
   isEchoMessageEvent,
@@ -12,9 +11,15 @@ const {
   buildBotModeState,
   isHumanModeExpired
 } = require("../services/conversationModeService");
+const {
+  buildHumanTakeoverNotification,
+  buildBotReactivationNotification,
+  buildEventInput,
+  shouldActivateHumanTakeover
+} = require("../services/humanTakeoverService");
 const { getReplyForMessage } = require("../services/conversationService");
 const { sendAlert } = require("../services/monitoringService");
-const { sendTextMessage } = require("../services/messengerService");
+const { sendTextMessage, passThreadControlToPageInbox, takeThreadControl } = require("../services/messengerService");
 const { getSenderIdByIssue, getUserState, saveUserState } = require("../store/userStore");
 
 const router = express.Router();
@@ -74,14 +79,6 @@ function buildJiraStatusNotification(issueKey, statusName) {
   }
 
   return [message, `Бүртгэлийн дугаар: ${issueKey}`].join("\n");
-}
-
-function buildHumanTakeoverNotification() {
-  return "👨‍💼 Оператор холбогдлоо";
-}
-
-function buildBotReactivationNotification() {
-  return "🤖 Автомат туслах дахин идэвхжлээ";
 }
 
 async function activateHumanTakeover(conversationId, eventTimestamp) {
@@ -173,7 +170,12 @@ router.post("/", async (req, res) => {
   }
 
   for (const entry of body.entry || []) {
-    for (const event of entry.messaging || []) {
+    const events = [
+      ...(entry.messaging || []).map((event) => ({ event, isStandby: false })),
+      ...(entry.standby || []).map((event) => ({ event, isStandby: true }))
+    ];
+
+    for (const { event, isStandby } of events) {
       try {
         if (isHumanTakeoverEvent(event)) {
           const conversationId = getConversationParticipantId(event);
@@ -191,18 +193,7 @@ router.post("/", async (req, res) => {
         }
 
         const senderId = getConversationParticipantId(event);
-        const text = event.message?.text;
-        const imageAttachment = event.message?.attachments?.find((attachment) => attachment.type === "image");
-        const attachmentUrl = imageAttachment?.payload?.url;
-        const quickReplyPayload = event.message?.quick_reply?.payload;
-        const postbackPayload = event.postback?.payload;
-        const input = postbackPayload
-          ? { payload: postbackPayload, text: postbackPayload }
-          : quickReplyPayload
-            ? { payload: quickReplyPayload, text: text || quickReplyPayload }
-            : attachmentUrl
-              ? { text: text || "image", attachmentUrl }
-              : text;
+        const { input, rawCommand, normalizedText } = buildEventInput(event);
 
         if (!senderId || !input) {
           continue;
@@ -210,12 +201,31 @@ router.post("/", async (req, res) => {
 
         const userState = await getUserState(senderId);
 
+        if (!isStandby && shouldActivateHumanTakeover(rawCommand, normalizedText)) {
+          const reply = await getReplyForMessage(senderId, input);
+
+          if (reply) {
+            await sendTextMessage(senderId, reply, { skipSend });
+          }
+
+          const takeover = await activateHumanTakeover(senderId, event.timestamp);
+
+          if (takeover.activated) {
+            await sendTextMessage(senderId, buildHumanTakeoverNotification(), { skipSend });
+          }
+
+          await passThreadControlToPageInbox(senderId, "operator_requested", { skipSend });
+          continue;
+        }
+
         if (userState.mode === HUMAN_MODE) {
           if (!isHumanModeExpired(userState, env.humanTakeoverTimeoutMinutes)) {
             continue;
           }
 
           const autoReturn = await autoReturnConversationToBot(senderId);
+
+          await takeThreadControl(senderId, "bot_reactivated", { skipSend });
 
           if (autoReturn.reactivated) {
             await sendTextMessage(senderId, buildBotReactivationNotification(), { skipSend });
@@ -244,9 +254,6 @@ router.post("/", async (req, res) => {
 module.exports = router;
 module.exports.getJiraStatusMessage = getJiraStatusMessage;
 module.exports.buildJiraStatusNotification = buildJiraStatusNotification;
-module.exports.buildHumanTakeoverNotification = buildHumanTakeoverNotification;
-module.exports.buildBotReactivationNotification = buildBotReactivationNotification;
 module.exports.verifyMessengerSignature = verifyMessengerSignature;
 module.exports.activateHumanTakeover = activateHumanTakeover;
-module.exports.autoReturnConversationToBot = autoReturnConversationToBot;
 module.exports.autoReturnConversationToBot = autoReturnConversationToBot;

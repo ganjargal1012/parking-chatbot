@@ -14,8 +14,10 @@ const {
 } = require("../src/services/conversationModeService");
 const {
   buildHumanTakeoverNotification,
-  buildBotReactivationNotification
-} = require("../src/routes/webhook");
+  buildBotReactivationNotification,
+  shouldActivateHumanTakeover,
+  buildEventInput
+} = require("../src/services/humanTakeoverService");
 
 test("defaults to BOT mode for legacy state", () => {
   assert.deepEqual(applyDefaultConversationState({ step: "menu" }), {
@@ -43,6 +45,26 @@ test("manual operator echo activates HUMAN mode on the customer conversation", (
   assert.equal(nextState.step, "complaint");
   assert.equal(nextState.humanModeActivatedAt, new Date(1000).toISOString());
   assert.equal(buildHumanTakeoverNotification(), "👨‍💼 Оператор холбогдлоо");
+});
+
+test("operator intents activate human takeover immediately", () => {
+  assert.equal(shouldActivateHumanTakeover("MENU_OPERATOR", ""), true);
+  assert.equal(shouldActivateHumanTakeover("show_operator_number", ""), true);
+  assert.equal(shouldActivateHumanTakeover("", "оператор"), true);
+  assert.equal(shouldActivateHumanTakeover("SHOW_MENU", "сайн уу"), false);
+});
+
+test("standby events reuse the same input extraction contract", () => {
+  const result = buildEventInput({
+    postback: { payload: "MENU_OPERATOR" }
+  });
+
+  assert.equal(result.rawCommand, "MENU_OPERATOR");
+  assert.equal(shouldActivateHumanTakeover(result.rawCommand, result.normalizedText), true);
+  assert.deepEqual(result.input, {
+    payload: "MENU_OPERATOR",
+    text: "MENU_OPERATOR"
+  });
 });
 
 test("app echo does not trigger human takeover", () => {
