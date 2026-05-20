@@ -475,7 +475,7 @@ async function startComplaintFlow(senderId, complaintType) {
   const complaintTypeLabel = getComplaintTypeLabel(complaintType);
   const requiresExplicitLocation = complaintType === "COMPLAINT_TYPE_BLOCKING";
   const nextState = {
-    step: requiresExplicitLocation ? "complaint_location" : "complaint",
+    step: requiresExplicitLocation ? "menu" : "complaint",
     intent: INTENT_COMPLAINT,
     complaintType: complaintType || ""
   };
@@ -485,14 +485,19 @@ async function startComplaintFlow(senderId, complaintType) {
   if (requiresExplicitLocation) {
     return createQuickReplyMessage(
       [
-        complaintTypeLabel,
+        "🚧 Хаалт нээгдэхгүй байна уу? Эхлээд дараах зүйлсийг туршина уу:",
         "",
-        "Та аль зогсоол дээр байгаагаа сонгоно уу.",
+        "• Машинаа бага зэрэг ухраагаад дахин ойртуулна уу",
+        "• Машины дугаар камер луу зөв харагдаж байгаа эсэхийг шалгана уу",
+        "• Дугаар таних хүртэл 3–5 секунд хүлээнэ үү",
+        "• Давхар хаалттай бол урд болон арын машинтайгаа зай барина уу",
+        "• Түгжрэлтэй үед урд машин бүрэн гарсны дараа дахин оролдоно уу",
         "",
-        "Зогсоолын нэрээ текстээр бичнэ үү 📍",
-        "Жишээ: Naadam center"
+        "Асуудал хэвээр байвал оператортой холбогдоно уу."
       ].join("\n"),
-      [createQuickReply("Үндсэн цэс", "SHOW_MENU")]
+      [
+        createQuickReply("👨‍💼 Оператор", "MENU_OPERATOR")
+      ]
     );
   }
 
