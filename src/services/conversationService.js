@@ -609,22 +609,6 @@ async function getReplyForMessage(senderId, rawInput) {
 
       return buildWelcomeMessage();
 
-    case "name": {
-      const nameError = validateName(text);
-
-      if (nameError) {
-        return nameError;
-      }
-
-      if (userState.intent === INTENT_FEEDBACK) {
-        await saveUserState(senderId, { ...userState, step: "feedback" });
-        return "Санал, хүсэлтээ бичнэ үү. 💬";
-      }
-
-      await saveUserState(senderId, { ...userState, name: text.trim(), step: "phone" });
-      return "Холбоо барих утасны дугаараа оруулна уу.";
-    }
-
     case "phone": {
       if (attachmentUrl && (!text || normalizedText === "image")) {
         await saveUserState(senderId, {

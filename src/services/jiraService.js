@@ -214,9 +214,9 @@ function buildComplaintSummaryBody(ticket) {
     const preferredHighlight = highlights.find((item) => item === "Цаг зогсохгүй")
       || highlights.find((item) => item !== getComplaintCategoryLabel(category) && item !== category)
       || highlights[0];
-    const primaryHighlight = preferredHighlight;
-    if (primaryHighlight && primaryHighlight !== getComplaintCategoryLabel(category)) {
-      parts.push(primaryHighlight);
+
+    if (preferredHighlight && preferredHighlight !== getComplaintCategoryLabel(category)) {
+      parts.push(preferredHighlight);
     }
   }
 
@@ -352,13 +352,10 @@ function buildFeedbackDescriptionBlocks(ticket) {
   ];
 }
 
-async function createJiraIssue({ summary, issueType, lines, labels, priority }) {
+async function createJiraIssue({ summary, issueType, lines, labels, priority, duplicateFingerprint, duplicateCommentLines = [] }) {
   if (!isJiraConfigured()) {
     throw new Error("Jira configuration is incomplete.");
   }
-
-  const duplicateFingerprint = arguments[0].duplicateFingerprint;
-  const duplicateCommentLines = arguments[0].duplicateCommentLines || [];
 
   if (duplicateFingerprint) {
     const cachedIssue = getRecentDuplicateFromCache(duplicateFingerprint);

@@ -21,7 +21,7 @@ const env = {
   conversationStateTtlHours: parseNumber(process.env.CONVERSATION_STATE_TTL_HOURS, 168),
   humanTakeoverTimeoutMinutes: parseNumber(process.env.HUMAN_TAKEOVER_TIMEOUT_MINUTES, 30),
   alertWebhookUrl: process.env.ALERT_WEBHOOK_URL || "",
-  verifyToken: process.env.VERIFY_TOKEN || "ubparking_test",
+  verifyToken: process.env.VERIFY_TOKEN || "",
   pageAccessToken: process.env.PAGE_ACCESS_TOKEN || "",
   appSecret: process.env.APP_SECRET || "",
   skipMessengerSend: process.env.SKIP_MESSENGER_SEND === "true",

@@ -243,8 +243,6 @@ function transliterateCyrillic(value) {
 function normalizeAliasForBuild(value) {
   return String(value || "")
     .replace(/[\-_/,]+/g, " ")
-    .replace(/\s*-\s*/g, " ")
-    .replace(/\//g, " ")
     .replace(/'/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -354,10 +352,6 @@ function matchParkingPreset(value) {
 
   for (const preset of PARKING_PRESETS) {
     const aliases = getPresetAliases(preset);
-
-    if (aliases.includes(normalizedValue)) {
-      return preset.name;
-    }
 
     for (const alias of aliases) {
       if (normalizedValue.includes(alias) || alias.includes(normalizedValue)) {
