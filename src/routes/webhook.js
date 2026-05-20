@@ -19,7 +19,7 @@ const {
 } = require("../services/humanTakeoverService");
 const { getReplyForMessage, isResetCommand } = require("../services/conversationService");
 const { sendAlert } = require("../services/monitoringService");
-const { sendTextMessage, passThreadControlToPageInbox, takeThreadControl } = require("../services/messengerService");
+const { sendTextMessage } = require("../services/messengerService");
 const { getSenderIdByIssue, getUserState, saveUserState } = require("../store/userStore");
 
 const router = express.Router();
@@ -214,7 +214,6 @@ router.post("/", async (req, res) => {
             await sendTextMessage(senderId, buildHumanTakeoverNotification(), { skipSend });
           }
 
-          await passThreadControlToPageInbox(senderId, "operator_requested", { skipSend });
           continue;
         }
 
@@ -230,12 +229,6 @@ router.post("/", async (req, res) => {
           }
 
           const autoReturn = await autoReturnConversationToBot(senderId);
-
-          try {
-            await takeThreadControl(senderId, "bot_reactivated", { skipSend });
-          } catch (err) {
-            console.warn("takeThreadControl failed, continuing anyway:", err.message);
-          }
 
           if (!forceExit && autoReturn.reactivated) {
             await sendTextMessage(senderId, buildBotReactivationNotification(), { skipSend });
