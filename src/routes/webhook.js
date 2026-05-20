@@ -219,7 +219,8 @@ router.post("/", async (req, res) => {
         }
 
         if (userState.mode === HUMAN_MODE) {
-          const forceExit = isResetCommand(normalizedText);
+          const normalizedCommand = rawCommand.toLowerCase();
+          const forceExit = isResetCommand(normalizedText) || normalizedCommand === "show_menu";
           const expired = isHumanModeExpired(userState, env.humanTakeoverTimeoutMinutes);
 
           if (!forceExit && !expired) {
