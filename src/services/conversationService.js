@@ -918,5 +918,6 @@ async function getReplyForMessage(senderId, rawInput) {
 }
 
 module.exports = {
-  getReplyForMessage
+  getReplyForMessage,
+  isResetCommand
 };

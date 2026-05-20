@@ -17,7 +17,7 @@ const {
   buildEventInput,
   shouldActivateHumanTakeover
 } = require("../services/humanTakeoverService");
-const { getReplyForMessage } = require("../services/conversationService");
+const { getReplyForMessage, isResetCommand } = require("../services/conversationService");
 const { sendAlert } = require("../services/monitoringService");
 const { sendTextMessage, passThreadControlToPageInbox, takeThreadControl } = require("../services/messengerService");
 const { getSenderIdByIssue, getUserState, saveUserState } = require("../store/userStore");
@@ -219,15 +219,17 @@ router.post("/", async (req, res) => {
         }
 
         if (userState.mode === HUMAN_MODE) {
-          if (!isHumanModeExpired(userState, env.humanTakeoverTimeoutMinutes)) {
+          const forceExit = isResetCommand(normalizedText);
+          const expired = isHumanModeExpired(userState, env.humanTakeoverTimeoutMinutes);
+
+          if (!forceExit && !expired) {
             continue;
           }
 
           const autoReturn = await autoReturnConversationToBot(senderId);
-
           await takeThreadControl(senderId, "bot_reactivated", { skipSend });
 
-          if (autoReturn.reactivated) {
+          if (!forceExit && autoReturn.reactivated) {
             await sendTextMessage(senderId, buildBotReactivationNotification(), { skipSend });
           }
         }
