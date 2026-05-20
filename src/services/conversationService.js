@@ -23,6 +23,7 @@ const INTENT_OPERATOR = "operator";
 const MAIN_MENU_OPTIONS = [
   { title: "🚧 Хаалт нээгдэхгүй", payload: "MENU_BLOCKING", complaintType: "COMPLAINT_TYPE_BLOCKING" },
   { title: "💳 Төлбөр", payload: "MENU_PAYMENT", complaintType: "COMPLAINT_TYPE_PAYMENT" },
+  { title: "🧾 Е-баримт", payload: "MENU_EBARIMT" },
   { title: "👨‍💼 Оператор", payload: "MENU_OPERATOR" },
   { title: "⚙️ Бусад", payload: "MENU_OTHER", complaintType: "COMPLAINT_TYPE_OTHER" }
 ];
@@ -538,6 +539,17 @@ async function getReplyForMessage(senderId, rawInput) {
   if (rawCommand === "MENU_PAYMENT") {
     await saveUserState(senderId, { step: "menu" });
     return buildPaymentInstructionMessage();
+  }
+
+  if (rawCommand === "MENU_EBARIMT") {
+    await saveUserState(senderId, { step: "menu" });
+    return createQuickReplyMessage(
+      "Та төлбөрөө төлсний дараа веб хуудас руу буцан орсноор таны төлбөрийн баримт автоматаар гарч ирнэ.",
+      [
+        createQuickReply("👨‍💼 Оператор", "MENU_OPERATOR"),
+        createQuickReply("Үндсэн цэс", "SHOW_MENU")
+      ]
+    );
   }
 
   if (normalizedCommand === "show_operator_number") {
