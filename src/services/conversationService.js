@@ -23,7 +23,7 @@ const INTENT_OPERATOR = "operator";
 const MAIN_MENU_OPTIONS = [
   { title: "🚧 Хаалт нээгдэхгүй", payload: "MENU_BLOCKING", complaintType: "COMPLAINT_TYPE_BLOCKING" },
   { title: "💳 Төлбөр", payload: "MENU_PAYMENT", complaintType: "COMPLAINT_TYPE_PAYMENT" },
-  { title: "🧾 Е-баримт", payload: "MENU_EBARIMT" },
+  { title: "🧾 И-баримт", payload: "MENU_EBARIMT" },
   { title: "👨‍💼 Оператор", payload: "MENU_OPERATOR" },
   { title: "⚙️ Бусад", payload: "MENU_OTHER", complaintType: "COMPLAINT_TYPE_OTHER" }
 ];
