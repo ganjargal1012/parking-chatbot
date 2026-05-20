@@ -199,16 +199,6 @@ function isEditCommand(text) {
   return EDIT_COMMANDS.has(text);
 }
 
-function validateName(text) {
-  const value = text.trim();
-
-  if (value.length < 2) {
-    return "Нэрээ арай дэлгэрэнгүй бичнэ үү.";
-  }
-
-  return null;
-}
-
 function validatePhone(text) {
   const digits = text.replace(/\D/g, "");
 
