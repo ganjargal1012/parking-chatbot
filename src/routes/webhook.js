@@ -228,7 +228,12 @@ router.post("/", async (req, res) => {
           }
 
           const autoReturn = await autoReturnConversationToBot(senderId);
-          await takeThreadControl(senderId, "bot_reactivated", { skipSend });
+
+          try {
+            await takeThreadControl(senderId, "bot_reactivated", { skipSend });
+          } catch (err) {
+            console.warn("takeThreadControl failed, continuing anyway:", err.message);
+          }
 
           if (!forceExit && autoReturn.reactivated) {
             await sendTextMessage(senderId, buildBotReactivationNotification(), { skipSend });
